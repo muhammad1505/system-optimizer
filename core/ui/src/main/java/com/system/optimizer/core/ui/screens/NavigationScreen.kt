@@ -21,7 +21,50 @@ enum class Screen(val label: String, val icon: ImageVector) {
     SETTINGS("Settings", Icons.Default.Settings)
 }
 
+private data class OptimizationAction(
+    val key: String,
+    val title: String,
+    val description: String,
+    val result: String
+)
+
+private val optimizationActions = listOf(
+    OptimizationAction(
+        key = "ram",
+        title = "RAM Optimizer",
+        description = "Analyze and free inactive memory",
+        result = "Freed 512 MB RAM"
+    ),
+    OptimizationAction(
+        key = "cache",
+        title = "Cache Cleaner",
+        description = "Remove temporary and junk cache",
+        result = "Cleared 256 MB cache"
+    ),
+    OptimizationAction(
+        key = "battery",
+        title = "Battery Saver",
+        description = "Tune background battery usage",
+        result = "Estimated battery saving +20%"
+    ),
+    OptimizationAction(
+        key = "process",
+        title = "Process Manager",
+        description = "Close unused background processes",
+        result = "Closed 15 background processes"
+    )
+)
+
 private val timeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+
+private fun buildInitialProgressSteps(): List<OptimizationStepUi> =
+    optimizationActions.map { action ->
+        OptimizationStepUi(
+            key = action.key,
+            title = action.title,
+            description = action.description
+        )
+    }
 
 @Composable
 fun NavigationScreen(modifier: Modifier = Modifier) {
@@ -30,9 +73,44 @@ fun NavigationScreen(modifier: Modifier = Modifier) {
     var isDarkModeEnabled by remember { mutableStateOf(false) }
     var isAutoOptimizeEnabled by remember { mutableStateOf(false) }
     var historyEntries by remember { mutableStateOf(emptyList<HistoryEntry>()) }
+    var progressMessage by remember { mutableStateOf("Ready to run optimization") }
+    var progressSteps by remember { mutableStateOf(buildInitialProgressSteps()) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+
+    fun calculateProgress(): Float {
+        val total = progressSteps.size
+        if (total == 0) return 0f
+        val completed = progressSteps.count { it.status == OptimizationStepStatus.COMPLETED }.toFloat()
+        val runningBonus = if (progressSteps.any { it.status == OptimizationStepStatus.RUNNING }) 0.4f else 0f
+        return ((completed + runningBonus) / total.toFloat()).coerceIn(0f, 1f)
+    }
+
+    fun resetProgressState() {
+        progressSteps = buildInitialProgressSteps()
+        progressMessage = "Preparing optimization tasks"
+    }
+
+    fun markStepRunning(key: String) {
+        progressSteps = progressSteps.map { step ->
+            when {
+                step.key == key -> step.copy(status = OptimizationStepStatus.RUNNING)
+                step.status == OptimizationStepStatus.RUNNING -> step.copy(status = OptimizationStepStatus.PENDING)
+                else -> step
+            }
+        }
+    }
+
+    fun markStepCompleted(key: String, result: String) {
+        progressSteps = progressSteps.map { step ->
+            if (step.key == key) {
+                step.copy(status = OptimizationStepStatus.COMPLETED, result = result)
+            } else {
+                step
+            }
+        }
+    }
 
     fun recordHistory(action: String, result: String) {
         val entry = HistoryEntry(
@@ -43,15 +121,20 @@ fun NavigationScreen(modifier: Modifier = Modifier) {
         historyEntries = listOf(entry) + historyEntries
     }
 
-    fun runSingleAction(action: String, result: String) {
+    fun runSingleAction(action: OptimizationAction) {
         if (isOptimizing) return
         coroutineScope.launch {
             isOptimizing = true
+            resetProgressState()
             snackbarHostState.currentSnackbarData?.dismiss()
-            snackbarHostState.showSnackbar("Running $action...")
-            delay(700)
-            recordHistory(action = action, result = result)
-            snackbarHostState.showSnackbar(result)
+            progressMessage = "Running ${action.title}"
+            markStepRunning(action.key)
+            snackbarHostState.showSnackbar("Starting ${action.title}...")
+            delay(1000)
+            markStepCompleted(action.key, action.result)
+            progressMessage = "${action.title} completed"
+            recordHistory(action = action.title, result = action.result)
+            snackbarHostState.showSnackbar(action.result)
             isOptimizing = false
         }
     }
@@ -60,20 +143,19 @@ fun NavigationScreen(modifier: Modifier = Modifier) {
         if (isOptimizing) return
         coroutineScope.launch {
             isOptimizing = true
+            resetProgressState()
             snackbarHostState.currentSnackbarData?.dismiss()
-            snackbarHostState.showSnackbar("Running full optimization...")
+            snackbarHostState.showSnackbar("Starting full optimization...")
 
-            val steps = listOf(
-                "RAM Optimizer" to "Freed 512 MB RAM",
-                "Cache Cleaner" to "Cleared 256 MB cache",
-                "Battery Saver" to "Estimated battery saving +20%",
-                "Process Manager" to "Closed 15 background processes"
-            )
-            steps.forEach { (action, result) ->
-                delay(450)
-                recordHistory(action = action, result = result)
+            optimizationActions.forEach { action ->
+                progressMessage = "Running ${action.title}"
+                markStepRunning(action.key)
+                delay(900)
+                markStepCompleted(action.key, action.result)
+                recordHistory(action = action.title, result = action.result)
             }
 
+            progressMessage = "Optimization completed successfully"
             snackbarHostState.showSnackbar("Optimization complete")
             isOptimizing = false
         }
@@ -103,29 +185,20 @@ fun NavigationScreen(modifier: Modifier = Modifier) {
             when (selected) {
                 Screen.HOME -> HomeScreen(
                     isOptimizing = isOptimizing,
+                    progressMessage = progressMessage,
+                    progressPercent = calculateProgress(),
+                    progressSteps = progressSteps,
                     onOptimizeRamClick = {
-                        runSingleAction(
-                            action = "RAM Optimizer",
-                            result = "Freed 512 MB RAM"
-                        )
+                        runSingleAction(optimizationActions.first { it.key == "ram" })
                     },
                     onClearCacheClick = {
-                        runSingleAction(
-                            action = "Cache Cleaner",
-                            result = "Cleared 256 MB cache"
-                        )
+                        runSingleAction(optimizationActions.first { it.key == "cache" })
                     },
                     onOptimizeBatteryClick = {
-                        runSingleAction(
-                            action = "Battery Saver",
-                            result = "Estimated battery saving +20%"
-                        )
+                        runSingleAction(optimizationActions.first { it.key == "battery" })
                     },
                     onKillProcessesClick = {
-                        runSingleAction(
-                            action = "Process Manager",
-                            result = "Closed 15 background processes"
-                        )
+                        runSingleAction(optimizationActions.first { it.key == "process" })
                     },
                     onOptimizeAllClick = { runOptimizeAll() }
                 )
