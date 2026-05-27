@@ -153,7 +153,7 @@ fun HomeScreen(
             )
         }
 
-        items(moduleItems, key = { it.key }) { module ->
+        items(moduleItems, key = { "module-${it.key}" }) { module ->
             OptimizeCard(
                 title = module.title,
                 desc = module.desc,
@@ -173,7 +173,7 @@ fun HomeScreen(
             )
         }
 
-        items(progressSteps, key = { it.key }) { step ->
+        items(progressSteps, key = { "timeline-${it.key}" }) { step ->
             TimelineCard(step = step)
         }
 
