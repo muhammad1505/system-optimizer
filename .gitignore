@@ -12,3 +12,6 @@ local.properties
 /core/*/build
 *.apk
 *.aab
+
+SmartFinancePro/
+gpt-promo-scanner/
