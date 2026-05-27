@@ -3,6 +3,7 @@ package com.system.optimizer.core.ui.screens
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -40,138 +41,162 @@ fun HomeScreen(
     onOptimizeAllClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    fun statusOf(key: String): OptimizationStepStatus =
+        progressSteps.firstOrNull { it.key == key }?.status ?: OptimizationStepStatus.PENDING
+
+    fun detailOf(key: String): String =
+        progressSteps.firstOrNull { it.key == key }?.result.orEmpty()
+
+    val completedCount = progressSteps.count { it.status == OptimizationStepStatus.COMPLETED }
+    val failedCount = progressSteps.count { it.status == OptimizationStepStatus.FAILED }
+    val runningCount = progressSteps.count { it.status == OptimizationStepStatus.RUNNING }
+    val totalCount = progressSteps.size.coerceAtLeast(1)
+    val healthScore = (72 + (completedCount * 7) - (failedCount * 14) - if (isOptimizing) 3 else 0).coerceIn(0, 100)
+    val healthLabel = when {
+        healthScore >= 90 -> "Excellent"
+        healthScore >= 75 -> "Stable"
+        healthScore >= 55 -> "Needs Attention"
+        else -> "Critical"
+    }
+
+    val moduleItems = listOf(
+        ModuleCardUi(
+            key = "ram",
+            title = "RAM Optimizer",
+            desc = "Free inactive memory and reduce pressure",
+            icon = Icons.Default.Memory,
+            tint = BlueInfo,
+            status = statusOf("ram"),
+            statusDetail = detailOf("ram"),
+            onRun = onOptimizeRamClick
+        ),
+        ModuleCardUi(
+            key = "cache",
+            title = "Cache Cleaner",
+            desc = "Remove temporary and residual files",
+            icon = Icons.Default.DeleteSweep,
+            tint = OrangeWarning,
+            status = statusOf("cache"),
+            statusDetail = detailOf("cache"),
+            onRun = onClearCacheClick
+        ),
+        ModuleCardUi(
+            key = "battery",
+            title = "Battery Saver",
+            desc = "Tune background battery consumption",
+            icon = Icons.Default.BatteryChargingFull,
+            tint = GreenOptimize,
+            status = statusOf("battery"),
+            statusDetail = detailOf("battery"),
+            onRun = onOptimizeBatteryClick
+        ),
+        ModuleCardUi(
+            key = "process",
+            title = "Process Manager",
+            desc = "Stop unused background processes",
+            icon = Icons.Default.Close,
+            tint = RedAlert,
+            status = statusOf("process"),
+            statusDetail = detailOf("process"),
+            onRun = onKillProcessesClick
+        )
+    )
+
     LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            val finishedCount = progressSteps.count {
-                it.status == OptimizationStepStatus.COMPLETED || it.status == OptimizationStepStatus.FAILED
-            }
-            val totalCount = progressSteps.size
-
-            Text("System Optimizer", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Text("System Optimizer", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(
-                text = if (isOptimizing) "Optimizing in progress" else "Ready to optimize your device",
+                text = if (isOptimizing) "Engine is running. Live metrics are updating." else "Control center ready. Run targeted optimization modules.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(Modifier.height(16.dp))
+        }
 
-            ElevatedCard(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                "Optimization Progress",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                progressMessage,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Surface(
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            shape = MaterialTheme.shapes.small
-                        ) {
-                            Text(
-                                text = "${(progressPercent * 100).toInt()}%",
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    LinearProgressIndicator(
-                        progress = progressPercent.coerceIn(0f, 1f),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        StatBadge("Processed", "$finishedCount/$totalCount", Modifier.weight(1f))
-                        StatBadge("Mode", if (isOptimizing) "Running" else "Standby", Modifier.weight(1f))
-                    }
-                }
-            }
-            Spacer(Modifier.height(12.dp))
+        item {
+            DeviceHealthCard(
+                score = healthScore,
+                healthLabel = healthLabel,
+                progressMessage = progressMessage,
+                progressPercent = progressPercent,
+                completedCount = completedCount,
+                failedCount = failedCount,
+                runningCount = runningCount,
+                totalCount = totalCount
+            )
+        }
 
-            OptimizeCard(
-                title = "RAM Optimizer",
-                desc = "Free up memory",
-                icon = Icons.Default.Memory,
-                color = BlueInfo,
-                status = progressSteps.firstOrNull { it.key == "ram" }?.status ?: OptimizationStepStatus.PENDING,
-                statusDetail = progressSteps.firstOrNull { it.key == "ram" }?.result.orEmpty(),
-                enabled = !isOptimizing,
-                onClick = onOptimizeRamClick
+        item {
+            SectionHeader(
+                title = "Quick Actions",
+                subtitle = "Run one module instantly from here"
             )
-            Spacer(Modifier.height(12.dp))
-            OptimizeCard(
-                title = "Cache Cleaner",
-                desc = "Clear junk files",
-                icon = Icons.Default.DeleteSweep,
-                color = OrangeWarning,
-                status = progressSteps.firstOrNull { it.key == "cache" }?.status ?: OptimizationStepStatus.PENDING,
-                statusDetail = progressSteps.firstOrNull { it.key == "cache" }?.result.orEmpty(),
+        }
+
+        item {
+            QuickActionGrid(
                 enabled = !isOptimizing,
-                onClick = onClearCacheClick
+                onOptimizeRamClick = onOptimizeRamClick,
+                onClearCacheClick = onClearCacheClick,
+                onOptimizeBatteryClick = onOptimizeBatteryClick,
+                onKillProcessesClick = onKillProcessesClick
             )
-            Spacer(Modifier.height(12.dp))
+        }
+
+        item {
+            SectionHeader(
+                title = "Optimization Center",
+                subtitle = "Each module shows live state and latest result"
+            )
+        }
+
+        items(moduleItems, key = { it.key }) { module ->
             OptimizeCard(
-                title = "Battery Saver",
-                desc = "Optimize battery",
-                icon = Icons.Default.BatteryChargingFull,
-                color = GreenOptimize,
-                status = progressSteps.firstOrNull { it.key == "battery" }?.status ?: OptimizationStepStatus.PENDING,
-                statusDetail = progressSteps.firstOrNull { it.key == "battery" }?.result.orEmpty(),
+                title = module.title,
+                desc = module.desc,
+                icon = module.icon,
+                color = module.tint,
+                status = module.status,
+                statusDetail = module.statusDetail,
                 enabled = !isOptimizing,
-                onClick = onOptimizeBatteryClick
+                onClick = module.onRun
             )
-            Spacer(Modifier.height(12.dp))
-            OptimizeCard(
-                title = "Process Manager",
-                desc = "Kill background apps",
-                icon = Icons.Default.Close,
-                color = RedAlert,
-                status = progressSteps.firstOrNull { it.key == "process" }?.status ?: OptimizationStepStatus.PENDING,
-                statusDetail = progressSteps.firstOrNull { it.key == "process" }?.result.orEmpty(),
-                enabled = !isOptimizing,
-                onClick = onKillProcessesClick
+        }
+
+        item {
+            SectionHeader(
+                title = "Execution Timeline",
+                subtitle = "Track what was processed in each optimization stage"
             )
-            Spacer(Modifier.height(24.dp))
+        }
+
+        items(progressSteps, key = { it.key }) { step ->
+            TimelineCard(step = step)
+        }
+
+        item {
             Button(
                 onClick = onOptimizeAllClick,
                 enabled = !isOptimizing,
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = GreenOptimize)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp)
             ) {
                 if (isOptimizing) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(18.dp),
                         strokeWidth = 2.dp,
                         color = MaterialTheme.colorScheme.onPrimary
                     )
-                    Spacer(Modifier.width(12.dp))
-                    Text("OPTIMIZING...", fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.width(10.dp))
+                    Text("Running Full Optimization")
                 } else {
-                    Text("OPTIMIZE NOW", fontWeight = FontWeight.Bold)
+                    Icon(Icons.Default.PlayArrow, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Start Full Optimization", fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -179,23 +204,150 @@ fun HomeScreen(
 }
 
 @Composable
+private fun DeviceHealthCard(
+    score: Int,
+    healthLabel: String,
+    progressMessage: String,
+    progressPercent: Float,
+    completedCount: Int,
+    failedCount: Int,
+    runningCount: Int,
+    totalCount: Int
+) {
+    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Device Health", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        progressMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text("$score", fontWeight = FontWeight.Bold)
+                        Text(healthLabel, style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
+
+            LinearProgressIndicator(
+                progress = progressPercent.coerceIn(0f, 1f),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                StatBadge(title = "Completed", value = "$completedCount/$totalCount", modifier = Modifier.weight(1f))
+                StatBadge(title = "Running", value = runningCount.toString(), modifier = Modifier.weight(1f))
+                StatBadge(title = "Failed", value = failedCount.toString(), modifier = Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionHeader(title: String, subtitle: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun QuickActionGrid(
+    enabled: Boolean,
+    onOptimizeRamClick: () -> Unit,
+    onClearCacheClick: () -> Unit,
+    onOptimizeBatteryClick: () -> Unit,
+    onKillProcessesClick: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            QuickActionButton(
+                label = "RAM",
+                icon = Icons.Default.Memory,
+                modifier = Modifier.weight(1f),
+                enabled = enabled,
+                onClick = onOptimizeRamClick
+            )
+            QuickActionButton(
+                label = "Cache",
+                icon = Icons.Default.DeleteSweep,
+                modifier = Modifier.weight(1f),
+                enabled = enabled,
+                onClick = onClearCacheClick
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            QuickActionButton(
+                label = "Battery",
+                icon = Icons.Default.BatteryChargingFull,
+                modifier = Modifier.weight(1f),
+                enabled = enabled,
+                onClick = onOptimizeBatteryClick
+            )
+            QuickActionButton(
+                label = "Process",
+                icon = Icons.Default.Close,
+                modifier = Modifier.weight(1f),
+                enabled = enabled,
+                onClick = onKillProcessesClick
+            )
+        }
+    }
+}
+
+@Composable
+private fun QuickActionButton(
+    label: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    enabled: Boolean,
+    modifier: Modifier = Modifier
+) {
+    FilledTonalButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.height(48.dp),
+        contentPadding = PaddingValues(horizontal = 10.dp)
+    ) {
+        Icon(icon, contentDescription = label, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(label, style = MaterialTheme.typography.labelLarge)
+    }
+}
+
+@Composable
 private fun StatBadge(title: String, value: String, modifier: Modifier = Modifier) {
     Surface(
         modifier = modifier,
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
         shape = MaterialTheme.shapes.small
     ) {
         Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold
-            )
+            Text(text = title, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(text = value, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -211,51 +363,131 @@ private fun OptimizeCard(
     enabled: Boolean,
     onClick: () -> Unit
 ) {
-    val statusIcon = when (status) {
+    OutlinedCard(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = enabled, onClick = onClick)
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(icon, contentDescription = title, modifier = Modifier.size(28.dp), tint = color)
+                    Spacer(Modifier.width(10.dp))
+                    Column {
+                        Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Text(desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+
+                StatusBadge(status = status)
+            }
+
+            Text(
+                text = if (statusDetail.isBlank()) "No execution result yet for this module." else statusDetail,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (statusDetail.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary
+            )
+
+            FilledTonalButton(
+                onClick = onClick,
+                enabled = enabled,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.PlayArrow, contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text("Run Module")
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimelineCard(step: OptimizationStepUi) {
+    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            StatusDot(step.status)
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(step.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
+                Text(step.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                val detail = if (step.result.isBlank()) stepStatusLabel(step.status) else step.result
+                Text(detail, style = MaterialTheme.typography.labelMedium, color = statusColor(step.status))
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatusBadge(status: OptimizationStepStatus) {
+    val icon = when (status) {
         OptimizationStepStatus.PENDING -> Icons.Default.Schedule
         OptimizationStepStatus.RUNNING -> Icons.Default.Autorenew
         OptimizationStepStatus.COMPLETED -> Icons.Default.CheckCircle
         OptimizationStepStatus.FAILED -> Icons.Default.ErrorOutline
     }
-    val statusTint = when (status) {
-        OptimizationStepStatus.PENDING -> MaterialTheme.colorScheme.onSurfaceVariant
-        OptimizationStepStatus.RUNNING -> BlueInfo
-        OptimizationStepStatus.COMPLETED -> GreenOptimize
-        OptimizationStepStatus.FAILED -> MaterialTheme.colorScheme.error
-    }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    Surface(
+        color = statusColor(status).copy(alpha = 0.14f),
+        shape = MaterialTheme.shapes.small
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(enabled = enabled, onClick = onClick)
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(icon, contentDescription = title, modifier = Modifier.size(36.dp), tint = color)
-                Spacer(Modifier.width(14.dp))
-                Column {
-                    Text(title, fontWeight = FontWeight.Bold)
-                    Text(desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(0.7f))
-                    if (statusDetail.isNotBlank()) {
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            statusDetail,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-            Icon(statusIcon, contentDescription = status.name, tint = statusTint)
+            Icon(icon, contentDescription = null, modifier = Modifier.size(14.dp), tint = statusColor(status))
+            Text(stepStatusLabel(status), style = MaterialTheme.typography.labelSmall, color = statusColor(status))
         }
     }
 }
+
+@Composable
+private fun StatusDot(status: OptimizationStepStatus) {
+    Surface(
+        modifier = Modifier.size(12.dp),
+        shape = MaterialTheme.shapes.small,
+        color = statusColor(status)
+    ) {}
+}
+
+private fun stepStatusLabel(status: OptimizationStepStatus): String = when (status) {
+    OptimizationStepStatus.PENDING -> "Pending"
+    OptimizationStepStatus.RUNNING -> "Running"
+    OptimizationStepStatus.COMPLETED -> "Completed"
+    OptimizationStepStatus.FAILED -> "Failed"
+}
+
+@Composable
+private fun statusColor(status: OptimizationStepStatus): Color = when (status) {
+    OptimizationStepStatus.PENDING -> MaterialTheme.colorScheme.onSurfaceVariant
+    OptimizationStepStatus.RUNNING -> BlueInfo
+    OptimizationStepStatus.COMPLETED -> GreenOptimize
+    OptimizationStepStatus.FAILED -> MaterialTheme.colorScheme.error
+}
+
+private data class ModuleCardUi(
+    val key: String,
+    val title: String,
+    val desc: String,
+    val icon: ImageVector,
+    val tint: Color,
+    val status: OptimizationStepStatus,
+    val statusDetail: String,
+    val onRun: () -> Unit
+)
