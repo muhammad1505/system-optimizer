@@ -16,6 +16,7 @@ android {
 dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:domain"))
+    implementation(project(":core:data"))
     implementation("androidx.core:core-ktx:1.13.1")
     implementation(platform("androidx.compose:compose-bom:2024.10.00"))
     implementation("androidx.compose.ui:ui")

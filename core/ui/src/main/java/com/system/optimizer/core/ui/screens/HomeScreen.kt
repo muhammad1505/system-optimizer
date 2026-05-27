@@ -12,12 +12,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import com.system.optimizer.core.ui.theme.*
 
 enum class OptimizationStepStatus {
-    PENDING, RUNNING, COMPLETED
+    PENDING, RUNNING, COMPLETED, FAILED
 }
 
 data class OptimizationStepUi(
@@ -48,7 +47,9 @@ fun HomeScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         item {
-            val completedCount = progressSteps.count { it.status == OptimizationStepStatus.COMPLETED }
+            val finishedCount = progressSteps.count {
+                it.status == OptimizationStepStatus.COMPLETED || it.status == OptimizationStepStatus.FAILED
+            }
             val totalCount = progressSteps.size
 
             Text("System Optimizer", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
@@ -104,28 +105,12 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        StatBadge("Completed", "$completedCount/$totalCount", Modifier.weight(1f))
+                        StatBadge("Processed", "$finishedCount/$totalCount", Modifier.weight(1f))
                         StatBadge("Mode", if (isOptimizing) "Running" else "Standby", Modifier.weight(1f))
                     }
                 }
             }
             Spacer(Modifier.height(12.dp))
-
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Detailed Steps", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(10.dp))
-                    progressSteps.forEachIndexed { index, step ->
-                        ProgressStepRow(step = step)
-                        if (index < progressSteps.lastIndex) {
-                            Spacer(Modifier.height(8.dp))
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
-                            Spacer(Modifier.height(8.dp))
-                        }
-                    }
-                }
-            }
-            Spacer(Modifier.height(16.dp))
 
             OptimizeCard(
                 title = "RAM Optimizer",
@@ -133,6 +118,7 @@ fun HomeScreen(
                 icon = Icons.Default.Memory,
                 color = BlueInfo,
                 status = progressSteps.firstOrNull { it.key == "ram" }?.status ?: OptimizationStepStatus.PENDING,
+                statusDetail = progressSteps.firstOrNull { it.key == "ram" }?.result.orEmpty(),
                 enabled = !isOptimizing,
                 onClick = onOptimizeRamClick
             )
@@ -143,6 +129,7 @@ fun HomeScreen(
                 icon = Icons.Default.DeleteSweep,
                 color = OrangeWarning,
                 status = progressSteps.firstOrNull { it.key == "cache" }?.status ?: OptimizationStepStatus.PENDING,
+                statusDetail = progressSteps.firstOrNull { it.key == "cache" }?.result.orEmpty(),
                 enabled = !isOptimizing,
                 onClick = onClearCacheClick
             )
@@ -153,6 +140,7 @@ fun HomeScreen(
                 icon = Icons.Default.BatteryChargingFull,
                 color = GreenOptimize,
                 status = progressSteps.firstOrNull { it.key == "battery" }?.status ?: OptimizationStepStatus.PENDING,
+                statusDetail = progressSteps.firstOrNull { it.key == "battery" }?.result.orEmpty(),
                 enabled = !isOptimizing,
                 onClick = onOptimizeBatteryClick
             )
@@ -163,6 +151,7 @@ fun HomeScreen(
                 icon = Icons.Default.Close,
                 color = RedAlert,
                 status = progressSteps.firstOrNull { it.key == "process" }?.status ?: OptimizationStepStatus.PENDING,
+                statusDetail = progressSteps.firstOrNull { it.key == "process" }?.result.orEmpty(),
                 enabled = !isOptimizing,
                 onClick = onKillProcessesClick
             )
@@ -212,62 +201,13 @@ private fun StatBadge(title: String, value: String, modifier: Modifier = Modifie
 }
 
 @Composable
-private fun ProgressStepRow(step: OptimizationStepUi) {
-    val (icon, tint, statusLabel) = when (step.status) {
-        OptimizationStepStatus.PENDING -> Triple(Icons.Default.RadioButtonUnchecked, MaterialTheme.colorScheme.onSurfaceVariant, "Pending")
-        OptimizationStepStatus.RUNNING -> Triple(Icons.Default.Autorenew, BlueInfo, "Running")
-        OptimizationStepStatus.COMPLETED -> Triple(Icons.Default.CheckCircle, GreenOptimize, "Done")
-    }
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Top
-    ) {
-        Row(
-            modifier = Modifier.weight(1f),
-            verticalAlignment = Alignment.Top
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = statusLabel,
-                tint = tint,
-                modifier = Modifier.padding(top = 2.dp)
-            )
-            Spacer(Modifier.width(12.dp))
-            Column {
-                Text(step.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                Text(step.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (step.result.isNotBlank()) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        step.result,
-                        style = MaterialTheme.typography.labelLarge.copy(fontSize = 12.sp),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-        }
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-            shape = MaterialTheme.shapes.small
-        ) {
-            Text(
-                statusLabel,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                style = MaterialTheme.typography.labelMedium
-            )
-        }
-    }
-}
-
-@Composable
 private fun OptimizeCard(
     title: String,
     desc: String,
     icon: ImageVector,
     color: Color,
     status: OptimizationStepStatus,
+    statusDetail: String,
     enabled: Boolean,
     onClick: () -> Unit
 ) {
@@ -275,11 +215,13 @@ private fun OptimizeCard(
         OptimizationStepStatus.PENDING -> Icons.Default.Schedule
         OptimizationStepStatus.RUNNING -> Icons.Default.Autorenew
         OptimizationStepStatus.COMPLETED -> Icons.Default.CheckCircle
+        OptimizationStepStatus.FAILED -> Icons.Default.ErrorOutline
     }
     val statusTint = when (status) {
         OptimizationStepStatus.PENDING -> MaterialTheme.colorScheme.onSurfaceVariant
         OptimizationStepStatus.RUNNING -> BlueInfo
         OptimizationStepStatus.COMPLETED -> GreenOptimize
+        OptimizationStepStatus.FAILED -> MaterialTheme.colorScheme.error
     }
 
     Card(
@@ -303,6 +245,14 @@ private fun OptimizeCard(
                 Column {
                     Text(title, fontWeight = FontWeight.Bold)
                     Text(desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(0.7f))
+                    if (statusDetail.isNotBlank()) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            statusDetail,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
             Icon(statusIcon, contentDescription = status.name, tint = statusTint)

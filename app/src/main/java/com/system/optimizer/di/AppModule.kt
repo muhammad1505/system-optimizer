@@ -22,7 +22,10 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideOptimizationRepository(localDataSource: LocalDataSource): OptimizationRepository {
-        return OptimizationRepositoryImpl(localDataSource)
+    fun provideOptimizationRepository(
+        localDataSource: LocalDataSource,
+        @ApplicationContext context: Context
+    ): OptimizationRepository {
+        return OptimizationRepositoryImpl(localDataSource, context)
     }
 }
