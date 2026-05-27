@@ -1,6 +1,17 @@
 package com.system.optimizer.core.ui.screens
 
+import android.Manifest
+import android.app.AppOpsManager
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import android.os.PowerManager
+import android.os.Process
+import android.provider.Settings
 import androidx.compose.foundation.layout.*
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.History
@@ -10,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import com.system.optimizer.core.common.Result
 import com.system.optimizer.core.data.repository.OptimizationRepositoryImpl
 import com.system.optimizer.core.data.source.local.LocalDataSource
@@ -62,6 +74,38 @@ private val optimizationActions = listOf(
 
 private val timeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
+private fun hasUsageAccess(context: Context): Boolean {
+    val appOpsManager = context.getSystemService(AppOpsManager::class.java) ?: return false
+    val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        appOpsManager.unsafeCheckOpNoThrow(
+            AppOpsManager.OPSTR_GET_USAGE_STATS,
+            Process.myUid(),
+            context.packageName
+        )
+    } else {
+        @Suppress("DEPRECATION")
+        appOpsManager.checkOpNoThrow(
+            AppOpsManager.OPSTR_GET_USAGE_STATS,
+            Process.myUid(),
+            context.packageName
+        )
+    }
+    return mode == AppOpsManager.MODE_ALLOWED
+}
+
+private fun isBatteryOptimizationIgnored(context: Context): Boolean {
+    val powerManager = context.getSystemService(PowerManager::class.java) ?: return false
+    return powerManager.isIgnoringBatteryOptimizations(context.packageName)
+}
+
+private fun hasNotificationPermission(context: Context): Boolean {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+    return ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.POST_NOTIFICATIONS
+    ) == PackageManager.PERMISSION_GRANTED
+}
+
 private fun buildInitialProgressSteps(): List<OptimizationStepUi> =
     optimizationActions.map { action ->
         OptimizationStepUi(
@@ -77,6 +121,9 @@ fun NavigationScreen(modifier: Modifier = Modifier) {
     var isOptimizing by remember { mutableStateOf(false) }
     var isDarkModeEnabled by remember { mutableStateOf(false) }
     var isAutoOptimizeEnabled by remember { mutableStateOf(false) }
+    var usageAccessGranted by remember { mutableStateOf(false) }
+    var batteryOptimizationIgnored by remember { mutableStateOf(false) }
+    var notificationPermissionGranted by remember { mutableStateOf(false) }
     var historyEntries by remember { mutableStateOf(emptyList<HistoryEntry>()) }
     var progressMessage by remember { mutableStateOf("Ready to run optimization") }
     var progressSteps by remember { mutableStateOf(buildInitialProgressSteps()) }
@@ -95,6 +142,27 @@ fun NavigationScreen(modifier: Modifier = Modifier) {
     val clearCacheUseCase = remember(repository) { ClearCacheUseCase(repository) }
     val optimizeBatteryUseCase = remember(repository) { OptimizeBatteryUseCase(repository) }
     val killProcessesUseCase = remember(repository) { KillProcessesUseCase(repository) }
+
+    fun refreshAccessState() {
+        usageAccessGranted = hasUsageAccess(appContext)
+        batteryOptimizationIgnored = isBatteryOptimizationIgnored(appContext)
+        notificationPermissionGranted = hasNotificationPermission(appContext)
+    }
+
+    val settingsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        refreshAccessState()
+    }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) {
+        refreshAccessState()
+    }
+
+    LaunchedEffect(Unit) {
+        refreshAccessState()
+    }
 
     fun bytesToReadable(bytes: Long): String {
         if (bytes <= 0L) return "0 B"
@@ -289,6 +357,16 @@ fun NavigationScreen(modifier: Modifier = Modifier) {
         }
     }
 
+    fun openSettingsPage(intent: Intent, unavailableMessage: String) {
+        runCatching {
+            settingsLauncher.launch(intent)
+        }.onFailure {
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar(unavailableMessage)
+            }
+        }
+    }
+
     Scaffold(
         modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -334,6 +412,9 @@ fun NavigationScreen(modifier: Modifier = Modifier) {
                 Screen.SETTINGS -> SettingsScreen(
                     darkModeEnabled = isDarkModeEnabled,
                     autoOptimizeEnabled = isAutoOptimizeEnabled,
+                    usageAccessGranted = usageAccessGranted,
+                    batteryOptimizationIgnored = batteryOptimizationIgnored,
+                    notificationPermissionGranted = notificationPermissionGranted,
                     isBusy = isOptimizing,
                     onDarkModeChange = { enabled ->
                         isDarkModeEnabled = enabled
@@ -348,6 +429,38 @@ fun NavigationScreen(modifier: Modifier = Modifier) {
                         coroutineScope.launch {
                             snackbarHostState.showSnackbar(
                                 if (enabled) "Auto optimize enabled" else "Auto optimize disabled"
+                            )
+                        }
+                    },
+                    onOpenUsageAccessSettings = {
+                        openSettingsPage(
+                            intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS),
+                            unavailableMessage = "Usage access settings unavailable"
+                        )
+                    },
+                    onOpenBatteryOptimizationSettings = {
+                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Battery optimization settings unavailable")
+                            }
+                        } else {
+                            openSettingsPage(
+                                intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS),
+                                unavailableMessage = "Battery optimization settings unavailable"
+                            )
+                        }
+                    },
+                    onRequestNotificationPermission = {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                            !notificationPermissionGranted
+                        ) {
+                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        } else {
+                            openSettingsPage(
+                                intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                    putExtra(Settings.EXTRA_APP_PACKAGE, appContext.packageName)
+                                },
+                                unavailableMessage = "Notification settings unavailable"
                             )
                         }
                     }
