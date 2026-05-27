@@ -12,6 +12,9 @@ local.properties
 /core/*/build
 *.apk
 *.aab
+*.jks
+*.keystore
+keystore/
 
 SmartFinancePro/
 gpt-promo-scanner/
