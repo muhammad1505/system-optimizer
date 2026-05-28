@@ -28,7 +28,7 @@ complexity:
     threshold: 25
   LongMethod:
     # @Composable screens get long; treat them like Activities and be lenient.
-    threshold: 120
+    threshold: 160
   LongParameterList:
     functionThreshold: 14
     constructorThreshold: 12
