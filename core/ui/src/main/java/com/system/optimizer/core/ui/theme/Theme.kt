@@ -11,7 +11,6 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -21,7 +20,7 @@ private val DarkColorScheme = darkColorScheme(
     secondary = PurpleGrey80,
     tertiary = Pink80,
     background = Color(0xFF1C1B1F),
-    surface = Color(0xFF1C1B1F),
+    surface = Color(0xFF1C1B1F)
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -33,9 +32,15 @@ private val LightColorScheme = lightColorScheme(
     onPrimary = OnPrimary,
     onSecondary = OnSecondary,
     onBackground = OnBackground,
-    onSurface = OnSurface,
+    onSurface = OnSurface
 )
 
+/**
+ * Material3 theme entry-point. Honours an explicit [darkTheme] override (sourced from a
+ * persisted preference) but falls back to system setting. We keep the system bars fully
+ * transparent so the app can render edge-to-edge, while updating the light/dark icon
+ * appearance via [WindowCompat].
+ */
 @Composable
 fun SystemOptimizerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -50,12 +55,16 @@ fun SystemOptimizerTheme(
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            // Edge-to-edge requires fully transparent system bars; the AppBar / nav bar
+            // surfaces below render their own background.
+            val controller = WindowCompat.getInsetsController(window, view)
+            controller.isAppearanceLightStatusBars = !darkTheme
+            controller.isAppearanceLightNavigationBars = !darkTheme
         }
     }
 

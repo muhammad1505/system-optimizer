@@ -10,16 +10,25 @@ import com.system.optimizer.core.data.source.local.LocalDataSource
 import com.system.optimizer.core.domain.model.OptimizationResult
 import com.system.optimizer.core.domain.model.OptimizationSummary
 import com.system.optimizer.core.domain.repository.OptimizationRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import java.io.File
 import javax.inject.Inject
+import javax.inject.Singleton
 
+/**
+ * Default implementation backed by Android system services. All long-running calls are kept
+ * lightweight; callers are expected to dispatch to [kotlinx.coroutines.Dispatchers.IO] when
+ * appropriate (the viewmodel does this).
+ */
+@Singleton
 class OptimizationRepositoryImpl @Inject constructor(
     private val localDataSource: LocalDataSource,
-    private val appContext: Context
+    @ApplicationContext private val appContext: Context
 ) : OptimizationRepository {
+
     private val activityManager: ActivityManager by lazy {
         appContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
     }
@@ -49,7 +58,6 @@ class OptimizationRepositoryImpl @Inject constructor(
     private fun fileSize(file: File): Long {
         if (!file.exists()) return 0L
         if (file.isFile) return file.length()
-
         val children = file.listFiles() ?: return 0L
         var size = 0L
         for (child in children) {
@@ -68,66 +76,80 @@ class OptimizationRepositoryImpl @Inject constructor(
     override fun getRamInfo(): Flow<Result<List<OptimizationResult>>> = flow {
         emit(Result.Loading)
         val memory = readMemoryInfo()
-        val results = listOf(
-            OptimizationResult(
-                type = "ram",
-                name = "System RAM",
-                description = "Available memory snapshot",
-                size = memory.availMem,
-                isOptimized = false,
-                iconRes = 0
+        emit(
+            Result.Success(
+                listOf(
+                    OptimizationResult(
+                        type = "ram",
+                        name = "System RAM",
+                        description = "Available memory snapshot",
+                        size = memory.availMem,
+                        isOptimized = false,
+                        iconRes = 0
+                    )
+                )
             )
         )
-        emit(Result.Success(results))
     }
-    
+
     override fun getCacheInfo(): Flow<Result<List<OptimizationResult>>> = flow {
         emit(Result.Loading)
         val totalCache = cacheRoots().sumOf(::fileSize)
-        val results = listOf(
-            OptimizationResult(
-                type = "cache",
-                name = "App Cache",
-                description = "Current cache footprint",
-                size = totalCache,
-                isOptimized = false,
-                iconRes = 0
+        emit(
+            Result.Success(
+                listOf(
+                    OptimizationResult(
+                        type = "cache",
+                        name = "App Cache",
+                        description = "Current cache footprint",
+                        size = totalCache,
+                        isOptimized = false,
+                        iconRes = 0
+                    )
+                )
             )
         )
-        emit(Result.Success(results))
     }
-    
+
     override fun getBatteryInfo(): Flow<Result<List<OptimizationResult>>> = flow {
         emit(Result.Loading)
-        val level = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY).coerceAtLeast(0)
+        val level = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+            .coerceAtLeast(0)
         val saver = powerManager.isPowerSaveMode
-        val results = listOf(
-            OptimizationResult(
-                type = "battery",
-                name = "Battery Saver",
-                description = if (saver) "Power saver is currently enabled" else "Power saver is currently disabled",
-                size = level.toLong(),
-                isOptimized = false,
-                iconRes = 0
+        emit(
+            Result.Success(
+                listOf(
+                    OptimizationResult(
+                        type = "battery",
+                        name = "Battery Saver",
+                        description = if (saver) "Power saver is currently enabled"
+                        else "Power saver is currently disabled",
+                        size = level.toLong(),
+                        isOptimized = false,
+                        iconRes = 0
+                    )
+                )
             )
         )
-        emit(Result.Success(results))
     }
-    
+
     override fun getRunningProcesses(): Flow<Result<List<OptimizationResult>>> = flow {
         emit(Result.Loading)
         val processCount = activityManager.runningAppProcesses?.size ?: 0
-        val results = listOf(
-            OptimizationResult(
-                type = "process",
-                name = "Background Processes",
-                description = "Visible process snapshot",
-                size = processCount.toLong(),
-                isOptimized = false,
-                iconRes = 0
+        emit(
+            Result.Success(
+                listOf(
+                    OptimizationResult(
+                        type = "process",
+                        name = "Background Processes",
+                        description = "Visible process snapshot",
+                        size = processCount.toLong(),
+                        isOptimized = false,
+                        iconRes = 0
+                    )
+                )
             )
         )
-        emit(Result.Success(results))
     }
 
     override suspend fun optimizeRam(): Result<Long> {
@@ -206,9 +228,12 @@ class OptimizationRepositoryImpl @Inject constructor(
             val afterMem = readMemoryInfo().availMem
             val memFreed = (afterMem - beforeMem).coerceAtLeast(0L)
 
-            val batteryPercent = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY).coerceAtLeast(0)
+            val batteryPercent = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                .coerceAtLeast(0)
             val bonus = if (powerManager.isPowerSaveMode) 4 else 0
-            val estimatedSaving = (memFreed / (64L * 1024L * 1024L)).toInt() + bonus + if (batteryPercent < 20) 2 else 0
+            val estimatedSaving = (memFreed / (64L * 1024L * 1024L)).toInt() +
+                bonus +
+                if (batteryPercent < 20) 2 else 0
 
             Result.Success(estimatedSaving.coerceAtMost(15))
         } catch (t: Throwable) {

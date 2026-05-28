@@ -1,33 +1,43 @@
 package com.system.optimizer.core.ui.screens
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material3.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-
-data class HistoryEntry(
-    val action: String,
-    val result: String,
-    val timestamp: String
-)
+import com.system.optimizer.core.ui.model.HistoryEntry
 
 @Composable
-fun HistoryScreen(history: List<HistoryEntry>, modifier: Modifier = Modifier) {
-    val failedCount = history.count {
-        val lower = it.result.lowercase()
-        "failed" in lower || "error" in lower
-    }
+fun HistoryScreen(
+    history: List<HistoryEntry>,
+    onClearHistory: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val failedCount = history.count { it.isFailure }
     val successCount = history.size - failedCount
+    val successColor = Color(0xFF2E7D32)
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -35,12 +45,34 @@ fun HistoryScreen(history: List<HistoryEntry>, modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
-            Text("Optimization History", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Text(
-                "Review recent optimization executions and outcomes.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Optimization History",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Recent optimization executions and outcomes.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                if (history.isNotEmpty()) {
+                    OutlinedButton(onClick = onClearHistory) {
+                        Icon(
+                            imageVector = Icons.Default.DeleteSweep,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text("  Clear")
+                    }
+                }
+            }
         }
 
         item {
@@ -58,7 +90,7 @@ fun HistoryScreen(history: List<HistoryEntry>, modifier: Modifier = Modifier) {
                     modifier = Modifier.weight(1f),
                     label = "Success",
                     value = successCount.toString(),
-                    tint = Color(0xFF2E7D32)
+                    tint = successColor
                 )
                 HistoryStatCard(
                     modifier = Modifier.weight(1f),
@@ -85,7 +117,7 @@ fun HistoryScreen(history: List<HistoryEntry>, modifier: Modifier = Modifier) {
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            "No optimization history yet.",
+                            text = "No optimization history yet.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -93,55 +125,64 @@ fun HistoryScreen(history: List<HistoryEntry>, modifier: Modifier = Modifier) {
                 }
             }
         } else {
-            items(history) { entry ->
-                val isFailed = entry.result.contains("failed", ignoreCase = true) ||
-                    entry.result.contains("error", ignoreCase = true)
-
-                OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                modifier = Modifier.weight(1f),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                val icon = if (isFailed) Icons.Default.ErrorOutline else Icons.Default.CheckCircle
-                                val tint = if (isFailed) MaterialTheme.colorScheme.error else Color(0xFF2E7D32)
-                                Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
-                                Text(
-                                    entry.action,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                            HistoryStatusChip(
-                                status = if (isFailed) "Failed" else "Success",
-                                tint = if (isFailed) MaterialTheme.colorScheme.error else Color(0xFF2E7D32)
-                            )
-                        }
-
-                        Text(
-                            entry.result,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            entry.timestamp,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+            items(history, key = { "${it.timestamp}-${it.action}" }) { entry ->
+                HistoryRow(entry = entry, successColor = successColor)
             }
+        }
+    }
+}
+
+@Composable
+private fun HistoryRow(entry: HistoryEntry, successColor: Color) {
+    val isFailed = entry.isFailure
+    val accent = if (isFailed) MaterialTheme.colorScheme.error else successColor
+
+    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = if (isFailed) Icons.Default.ErrorOutline
+                        else Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = accent,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = entry.action,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                HistoryStatusChip(
+                    status = if (isFailed) "Failed" else "Success",
+                    tint = accent
+                )
+            }
+
+            Text(
+                text = entry.result,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = entry.timestamp,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -160,8 +201,17 @@ private fun HistoryStatCard(
                 .padding(horizontal = 10.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.Start
         ) {
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = tint)
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = tint
+            )
         }
     }
 }
@@ -173,7 +223,7 @@ private fun HistoryStatusChip(status: String, tint: Color) {
         shape = MaterialTheme.shapes.small
     ) {
         Text(
-            status,
+            text = status,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelSmall,
             color = tint

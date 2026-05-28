@@ -1,31 +1,27 @@
 package com.system.optimizer.di
 
-import android.content.Context
 import com.system.optimizer.core.data.repository.OptimizationRepositoryImpl
-import com.system.optimizer.core.data.source.local.LocalDataSource
 import com.system.optimizer.core.domain.repository.OptimizationRepository
+import dagger.Binds
 import dagger.Module
-import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
+/**
+ * Binds repository interfaces to their default implementation.
+ *
+ * Both [com.system.optimizer.core.data.source.local.LocalDataSource] and
+ * [OptimizationRepositoryImpl] are constructor-annotated with [javax.inject.Inject], so we
+ * only need a [Binds] hookup to resolve the interface contract.
+ */
 @Module
 @InstallIn(SingletonComponent::class)
-object AppModule {
-    @Provides
-    @Singleton
-    fun provideLocalDataSource(@ApplicationContext context: Context): LocalDataSource {
-        return LocalDataSource(context)
-    }
+abstract class AppModule {
 
-    @Provides
+    @Binds
     @Singleton
-    fun provideOptimizationRepository(
-        localDataSource: LocalDataSource,
-        @ApplicationContext context: Context
-    ): OptimizationRepository {
-        return OptimizationRepositoryImpl(localDataSource, context)
-    }
+    abstract fun bindOptimizationRepository(
+        impl: OptimizationRepositoryImpl
+    ): OptimizationRepository
 }
