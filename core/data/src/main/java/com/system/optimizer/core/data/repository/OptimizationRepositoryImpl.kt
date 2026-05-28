@@ -180,41 +180,40 @@ class OptimizationRepositoryImpl @Inject constructor(
 
     override suspend fun killBackgroundProcesses(): Result<Int> {
         return try {
-            val packageManager = appContext.packageManager
-            val ownPackage = appContext.packageName
-            val candidates = mutableSetOf<String>()
-
-            val processes = activityManager.runningAppProcesses.orEmpty()
-            for (process in processes) {
-                val fromList = process.pkgList.orEmpty()
-                if (fromList.isNotEmpty()) {
-                    candidates.addAll(fromList)
-                } else {
-                    val inferred = process.processName.substringBefore(":")
-                    if (inferred.isNotBlank()) {
-                        candidates += inferred
-                    }
-                }
-            }
-
-            var killed = 0
-            for (pkg in candidates) {
-                if (pkg == ownPackage) continue
-                try {
-                    val info = packageManager.getApplicationInfo(pkg, 0)
-                    val isSystem = (info.flags and ApplicationInfo.FLAG_SYSTEM) != 0
-                    if (isSystem) continue
-
-                    activityManager.killBackgroundProcesses(pkg)
-                    killed += 1
-                } catch (_: Throwable) {
-                    // Ignore packages not accessible on current Android restrictions.
-                }
-            }
-
+            val candidates = collectRunningPackageNames()
+            val killed = candidates.count { tryKillBackgroundProcess(it) }
             Result.Success(killed)
         } catch (t: Throwable) {
             Result.Error(t)
+        }
+    }
+
+    private fun collectRunningPackageNames(): Set<String> {
+        val candidates = mutableSetOf<String>()
+        val processes = activityManager.runningAppProcesses.orEmpty()
+        for (process in processes) {
+            val fromList = process.pkgList.orEmpty()
+            if (fromList.isNotEmpty()) {
+                candidates.addAll(fromList)
+            } else {
+                process.processName.substringBefore(":")
+                    .takeIf { it.isNotBlank() }
+                    ?.let { candidates += it }
+            }
+        }
+        return candidates
+    }
+
+    private fun tryKillBackgroundProcess(pkg: String): Boolean {
+        if (pkg == appContext.packageName) return false
+        return try {
+            val info = appContext.packageManager.getApplicationInfo(pkg, 0)
+            if ((info.flags and ApplicationInfo.FLAG_SYSTEM) != 0) return false
+            activityManager.killBackgroundProcesses(pkg)
+            true
+        } catch (_: Throwable) {
+            // Ignore packages not accessible on current Android restrictions.
+            false
         }
     }
 
