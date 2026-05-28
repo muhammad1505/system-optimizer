@@ -18,9 +18,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.outlined.History as OutlinedHistory
-import androidx.compose.material.icons.outlined.Home as OutlinedHome
-import androidx.compose.material.icons.outlined.Settings as OutlinedSettings
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -54,9 +54,9 @@ private enum class Tab(
     val outlinedIcon: ImageVector,
     val filledIcon: ImageVector
 ) {
-    HOME("Home", OutlinedHome, Icons.Default.Home),
-    HISTORY("History", OutlinedHistory, Icons.Default.History),
-    SETTINGS("Settings", OutlinedSettings, Icons.Default.Settings)
+    HOME("Home", Icons.Outlined.Home, Icons.Filled.Home),
+    HISTORY("History", Icons.Outlined.History, Icons.Filled.History),
+    SETTINGS("Settings", Icons.Outlined.Settings, Icons.Filled.Settings)
 }
 
 @Composable
