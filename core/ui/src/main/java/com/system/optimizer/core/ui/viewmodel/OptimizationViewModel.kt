@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.system.optimizer.core.common.Constants
 import com.system.optimizer.core.common.BytesFormatter
 import com.system.optimizer.core.common.Result
+import com.system.optimizer.core.common.di.IoDispatcher
 import com.system.optimizer.core.data.source.local.LocalDataSource
 import com.system.optimizer.core.domain.usecase.ClearCacheUseCase
 import com.system.optimizer.core.domain.usecase.KillProcessesUseCase
@@ -17,7 +18,7 @@ import com.system.optimizer.core.ui.model.OptimizationAction
 import com.system.optimizer.core.ui.model.OptimizationStepStatus
 import com.system.optimizer.core.ui.model.OptimizationStepUi
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -80,7 +81,8 @@ class OptimizationViewModel @Inject constructor(
     private val optimizeRamUseCase: OptimizeRamUseCase,
     private val clearCacheUseCase: ClearCacheUseCase,
     private val optimizeBatteryUseCase: OptimizeBatteryUseCase,
-    private val killProcessesUseCase: KillProcessesUseCase
+    private val killProcessesUseCase: KillProcessesUseCase,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OptimizationUiState())
@@ -256,7 +258,7 @@ class OptimizationViewModel @Inject constructor(
 
     private suspend fun executeAction(action: OptimizationAction): Pair<Boolean, String> {
         return when (action.key) {
-            "ram" -> when (val result = withContext(Dispatchers.IO) { optimizeRamUseCase() }) {
+            "ram" -> when (val result = withContext(ioDispatcher) { optimizeRamUseCase() }) {
                 is Result.Success -> {
                     val detail = if (result.data > 0L) "Freed ${BytesFormatter.toReadable(result.data)} RAM"
                     else "No significant RAM reclaimed"
@@ -266,7 +268,7 @@ class OptimizationViewModel @Inject constructor(
                 Result.Loading -> false to "RAM optimization still loading"
             }
 
-            "cache" -> when (val result = withContext(Dispatchers.IO) { clearCacheUseCase() }) {
+            "cache" -> when (val result = withContext(ioDispatcher) { clearCacheUseCase() }) {
                 is Result.Success -> {
                     val detail = if (result.data > 0L) "Cleared ${BytesFormatter.toReadable(result.data)} cache"
                     else "No cache files to clear"
@@ -276,7 +278,7 @@ class OptimizationViewModel @Inject constructor(
                 Result.Loading -> false to "Cache cleaning still loading"
             }
 
-            "battery" -> when (val result = withContext(Dispatchers.IO) { optimizeBatteryUseCase() }) {
+            "battery" -> when (val result = withContext(ioDispatcher) { optimizeBatteryUseCase() }) {
                 is Result.Success -> {
                     val detail = if (result.data > 0) "Estimated battery saving +${result.data}%"
                     else "No additional battery saving detected"
@@ -286,7 +288,7 @@ class OptimizationViewModel @Inject constructor(
                 Result.Loading -> false to "Battery optimization still loading"
             }
 
-            "process" -> when (val result = withContext(Dispatchers.IO) { killProcessesUseCase() }) {
+            "process" -> when (val result = withContext(ioDispatcher) { killProcessesUseCase() }) {
                 is Result.Success -> {
                     val detail = if (result.data > 0) "Requested stop for ${result.data} background app(s)"
                     else "No eligible background app to stop"

@@ -3,7 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.dagger.hilt.android")
-    id("kotlin-kapt")
+    id("com.google.devtools.ksp")
 }
 
 android {
@@ -23,9 +23,9 @@ android {
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
-            // Android JSONArray is stub-only on a JVM unit test; let Robolectric or the
-            // android.test runtime resolve them. We keep the test purely on org.json so
-            // we just enable returning default values to be safe.
+            // android.jar's org.json is stub-only; we provide a real implementation via
+            // testImplementation("org.json:json"). Keep return-default-values true so any
+            // other accidental Android API call returns a sane default rather than crashing.
             isReturnDefaultValues = true
         }
     }
@@ -52,14 +52,14 @@ dependencies {
 
     // Hilt + Compose integration
     implementation("com.google.dagger:hilt-android:2.51.1")
-    kapt("com.google.dagger:hilt-compiler:2.51.1")
+    ksp("com.google.dagger:hilt-compiler:2.51.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20231013")
+    testImplementation("io.mockk:mockk:1.13.13")
+    testImplementation("app.cash.turbine:turbine:1.1.0")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
 }
-
-kapt { correctErrorTypes = true }

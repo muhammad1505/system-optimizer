@@ -20,5 +20,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
+      - name: Run Detekt (style + complexity)
+        run: ./gradlew detekt --no-daemon
       - name: Run Full Test & Static Checks
         run: ./gradlew check --no-daemon

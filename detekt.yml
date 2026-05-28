@@ -1,0 +1,107 @@
+build:
+  maxIssues: 0
+  weights:
+    complexity: 2
+    LongParameterList: 1
+    style: 1
+    comments: 0
+
+config:
+  validation: true
+  warningsAsErrors: false
+
+processors:
+  active: true
+
+console-reports:
+  active: true
+  exclude:
+    - 'ProjectStatisticsReport'
+    - 'ComplexityReport'
+    - 'NotificationReport'
+    - 'FindingsReport'
+    - 'FileBasedFindingsReport'
+
+complexity:
+  active: true
+  CyclomaticComplexMethod:
+    threshold: 25
+  LongMethod:
+    # @Composable screens get long; treat them like Activities and be lenient.
+    threshold: 120
+  LongParameterList:
+    functionThreshold: 14
+    constructorThreshold: 12
+    ignoreDefaultParameters: true
+    ignoreDataClasses: true
+  LargeClass:
+    threshold: 800
+  TooManyFunctions:
+    thresholdInFiles: 40
+    thresholdInClasses: 30
+    thresholdInInterfaces: 30
+    thresholdInObjects: 30
+    thresholdInEnums: 30
+
+style:
+  active: true
+  MaxLineLength:
+    maxLineLength: 140
+  WildcardImport:
+    active: true
+    excludeImports:
+      - 'java.util.*'
+      - 'androidx.compose.foundation.layout.*'
+      - 'androidx.compose.material.icons.filled.*'
+      - 'androidx.compose.material3.*'
+      - 'androidx.compose.runtime.*'
+      - 'androidx.compose.ui.*'
+  MagicNumber:
+    active: false
+  ReturnCount:
+    max: 6
+  UnusedPrivateMember:
+    active: true
+  UnusedImports:
+    active: true
+  ForbiddenComment:
+    active: false
+  NewLineAtEndOfFile:
+    active: true
+
+naming:
+  active: true
+  FunctionNaming:
+    # Compose @Composable functions use PascalCase.
+    functionPattern: '[a-zA-Z][a-zA-Z0-9]*'
+  TopLevelPropertyNaming:
+    constantPattern: '[A-Z][_A-Z0-9]*'
+
+empty-blocks:
+  active: true
+
+exceptions:
+  active: true
+  TooGenericExceptionCaught:
+    active: false
+  SwallowedException:
+    active: false
+  InstanceOfCheckForException:
+    active: false
+  TooGenericExceptionThrown:
+    active: false
+
+potential-bugs:
+  active: true
+
+performance:
+  active: true
+
+coroutines:
+  active: true
+  GlobalCoroutineUsage:
+    active: true
+  RedundantSuspendModifier:
+    active: true
+  SuspendFunWithCoroutineScopeReceiver:
+    active: true
