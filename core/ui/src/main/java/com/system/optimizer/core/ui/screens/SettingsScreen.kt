@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
@@ -23,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.system.optimizer.core.common.Constants
+import com.system.optimizer.core.ui.theme.AppTheme
 
 @Composable
 fun SettingsScreen(
@@ -40,10 +42,11 @@ fun SettingsScreen(
     onRequestNotificationPermission: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val spacing = AppTheme.spacing
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(spacing.md),
+        verticalArrangement = Arrangement.spacedBy(spacing.sm + spacing.xs)
     ) {
         item {
             Text(
@@ -59,7 +62,12 @@ fun SettingsScreen(
         }
 
         item {
-            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+            OutlinedCard(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.outlinedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                )
+            ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -171,7 +179,12 @@ private fun ToggleRow(
     enabled: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -206,7 +219,12 @@ private fun AccessRow(
     enabled: Boolean,
     onClick: () -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()

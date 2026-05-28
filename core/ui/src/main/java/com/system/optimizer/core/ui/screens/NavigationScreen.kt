@@ -18,6 +18,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.History as OutlinedHistory
+import androidx.compose.material.icons.outlined.Home as OutlinedHome
+import androidx.compose.material.icons.outlined.Settings as OutlinedSettings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -46,10 +49,14 @@ import com.system.optimizer.core.ui.viewmodel.OptimizationViewModel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
-private enum class Tab(val label: String, val icon: ImageVector) {
-    HOME("Home", Icons.Default.Home),
-    HISTORY("History", Icons.Default.History),
-    SETTINGS("Settings", Icons.Default.Settings)
+private enum class Tab(
+    val label: String,
+    val outlinedIcon: ImageVector,
+    val filledIcon: ImageVector
+) {
+    HOME("Home", OutlinedHome, Icons.Default.Home),
+    HISTORY("History", OutlinedHistory, Icons.Default.History),
+    SETTINGS("Settings", OutlinedSettings, Icons.Default.Settings)
 }
 
 @Composable
@@ -129,10 +136,16 @@ fun NavigationScreen(
         bottomBar = {
             NavigationBar {
                 Tab.entries.forEach { tab ->
+                    val isSelected = selected == tab
                     NavigationBarItem(
-                        icon = { Icon(tab.icon, contentDescription = tab.label) },
+                        icon = {
+                            Icon(
+                                imageVector = if (isSelected) tab.filledIcon else tab.outlinedIcon,
+                                contentDescription = tab.label
+                            )
+                        },
                         label = { Text(tab.label) },
-                        selected = selected == tab,
+                        selected = isSelected,
                         onClick = { selected = tab }
                     )
                 }

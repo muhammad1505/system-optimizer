@@ -9,37 +9,97 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80,
-    background = Color(0xFF1C1B1F),
-    surface = Color(0xFF1C1B1F)
+private val LightColorScheme = lightColorScheme(
+    primary = Primary40,
+    onPrimary = OnPrimary100,
+    primaryContainer = PrimaryContainer90,
+    onPrimaryContainer = OnPrimaryContainer10,
+    secondary = Secondary40,
+    onSecondary = OnSecondary100,
+    secondaryContainer = SecondaryContainer90,
+    onSecondaryContainer = OnSecondaryContainer10,
+    tertiary = Tertiary40,
+    onTertiary = OnTertiary100,
+    tertiaryContainer = TertiaryContainer90,
+    onTertiaryContainer = OnTertiaryContainer10,
+    error = Error40,
+    onError = OnError100,
+    errorContainer = ErrorContainer90,
+    onErrorContainer = OnErrorContainer10,
+    background = LightBackground,
+    onBackground = LightOnBackground,
+    surface = LightSurface,
+    onSurface = LightOnSurface,
+    surfaceVariant = LightSurfaceVariant,
+    onSurfaceVariant = LightOnSurfaceVariant,
+    surfaceTint = LightSurfaceTint,
+    inverseSurface = LightInverseSurface,
+    inverseOnSurface = LightInverseOnSurface,
+    inversePrimary = LightInversePrimary,
+    outline = LightOutline,
+    outlineVariant = LightOutlineVariant,
+    scrim = LightScrim,
+    surfaceBright = LightSurfaceBright,
+    surfaceDim = LightSurfaceDim,
+    surfaceContainerLowest = LightSurfaceContainerLowest,
+    surfaceContainerLow = LightSurfaceContainerLow,
+    surfaceContainer = LightSurfaceContainer,
+    surfaceContainerHigh = LightSurfaceContainerHigh,
+    surfaceContainerHighest = LightSurfaceContainerHighest
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40,
-    background = Background,
-    surface = Surface,
-    onPrimary = OnPrimary,
-    onSecondary = OnSecondary,
-    onBackground = OnBackground,
-    onSurface = OnSurface
+private val DarkColorScheme = darkColorScheme(
+    primary = Primary80,
+    onPrimary = OnPrimary20,
+    primaryContainer = PrimaryContainer30,
+    onPrimaryContainer = OnPrimaryContainer90,
+    secondary = Secondary80,
+    onSecondary = OnSecondary20,
+    secondaryContainer = SecondaryContainer30,
+    onSecondaryContainer = OnSecondaryContainer90,
+    tertiary = Tertiary80,
+    onTertiary = OnTertiary20,
+    tertiaryContainer = TertiaryContainer30,
+    onTertiaryContainer = OnTertiaryContainer90,
+    error = Error80,
+    onError = OnError20,
+    errorContainer = ErrorContainer30,
+    onErrorContainer = OnErrorContainer90,
+    background = DarkBackground,
+    onBackground = DarkOnBackground,
+    surface = DarkSurface,
+    onSurface = DarkOnSurface,
+    surfaceVariant = DarkSurfaceVariant,
+    onSurfaceVariant = DarkOnSurfaceVariant,
+    surfaceTint = DarkSurfaceTint,
+    inverseSurface = DarkInverseSurface,
+    inverseOnSurface = DarkInverseOnSurface,
+    inversePrimary = DarkInversePrimary,
+    outline = DarkOutline,
+    outlineVariant = DarkOutlineVariant,
+    scrim = DarkScrim,
+    surfaceBright = DarkSurfaceBright,
+    surfaceDim = DarkSurfaceDim,
+    surfaceContainerLowest = DarkSurfaceContainerLowest,
+    surfaceContainerLow = DarkSurfaceContainerLow,
+    surfaceContainer = DarkSurfaceContainer,
+    surfaceContainerHigh = DarkSurfaceContainerHigh,
+    surfaceContainerHighest = DarkSurfaceContainerHighest
 )
 
 /**
  * Material3 theme entry-point. Honours an explicit [darkTheme] override (sourced from a
- * persisted preference) but falls back to system setting. We keep the system bars fully
- * transparent so the app can render edge-to-edge, while updating the light/dark icon
- * appearance via [WindowCompat].
+ * persisted preference) but falls back to system setting. Provides shapes, typography
+ * and a [LocalAppSpacing] custom token alongside the colour scheme.
+ *
+ * Edge-to-edge: status / navigation bars stay transparent; light/dark icon appearance
+ * follows the active theme via [WindowCompat].
  */
 @Composable
 fun SystemOptimizerTheme(
@@ -60,17 +120,18 @@ fun SystemOptimizerTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            // Edge-to-edge requires fully transparent system bars; the AppBar / nav bar
-            // surfaces below render their own background.
             val controller = WindowCompat.getInsetsController(window, view)
             controller.isAppearanceLightStatusBars = !darkTheme
             controller.isAppearanceLightNavigationBars = !darkTheme
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    CompositionLocalProvider(LocalAppSpacing provides AppSpacing()) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            shapes = AppShapes,
+            content = content
+        )
+    }
 }

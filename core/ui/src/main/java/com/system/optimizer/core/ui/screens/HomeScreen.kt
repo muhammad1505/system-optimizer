@@ -1,5 +1,10 @@
 package com.system.optimizer.core.ui.screens
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -36,6 +41,7 @@ import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,6 +50,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.system.optimizer.core.ui.model.OptimizationStepStatus
 import com.system.optimizer.core.ui.model.OptimizationStepUi
+import com.system.optimizer.core.ui.theme.AppTheme
 import com.system.optimizer.core.ui.theme.BlueInfo
 import com.system.optimizer.core.ui.theme.GreenOptimize
 import com.system.optimizer.core.ui.theme.OrangeWarning
@@ -51,8 +58,8 @@ import com.system.optimizer.core.ui.theme.RedAlert
 import com.system.optimizer.core.ui.viewmodel.OptimizationUiState
 
 /**
- * Tunable-icon descriptor for one optimization module rendered as a card.
- * Static metadata only; live state comes from the ViewModel.
+ * Static visual descriptor (icon + tint) for a single optimization module. Live state
+ * comes from the ViewModel so the icon list lives outside any state.
  */
 private data class ModuleVisuals(
     val key: String,
@@ -74,6 +81,7 @@ fun HomeScreen(
     onRunAll: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val spacing = AppTheme.spacing
     val healthScore = computeHealthScore(state)
     val healthLabel = when {
         healthScore >= 90 -> "Excellent"
@@ -84,8 +92,8 @@ fun HomeScreen(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(spacing.md),
+        verticalArrangement = Arrangement.spacedBy(spacing.sm + spacing.xs)
     ) {
         item { Header(state = state) }
 
@@ -144,7 +152,7 @@ fun HomeScreen(
 
 @Composable
 private fun Header(state: OptimizationUiState) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xxs)) {
         Text(
             text = "System Optimizer",
             style = MaterialTheme.typography.headlineSmall,
@@ -181,12 +189,25 @@ private fun DeviceHealthCard(
     runningCount: Int,
     totalCount: Int
 ) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+    val animatedProgress by animateFloatAsState(
+        targetValue = progressPercent.coerceIn(0f, 1f),
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "progress"
+    )
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(AppTheme.spacing.md),
+            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm + AppTheme.spacing.xxs)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -229,13 +250,13 @@ private fun DeviceHealthCard(
             }
 
             LinearProgressIndicator(
-                progress = { progressPercent.coerceIn(0f, 1f) },
+                progress = { animatedProgress },
                 modifier = Modifier.fillMaxWidth()
             )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
             ) {
                 StatBadge(
                     title = "Completed",
@@ -259,7 +280,7 @@ private fun DeviceHealthCard(
 
 @Composable
 private fun SectionHeader(title: String, subtitle: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xxs)) {
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
@@ -277,7 +298,7 @@ private fun SectionHeader(title: String, subtitle: String) {
 private fun StatBadge(title: String, value: String, modifier: Modifier = Modifier) {
     Surface(
         modifier = modifier,
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
         shape = MaterialTheme.shapes.small
     ) {
         Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
@@ -304,9 +325,13 @@ private fun ModuleCard(
     onRun: () -> Unit
 ) {
     OutlinedCard(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(
+                animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
+            ),
         colors = CardDefaults.outlinedCardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
     ) {
         Column(
@@ -314,7 +339,7 @@ private fun ModuleCard(
                 .fillMaxWidth()
                 .clickable(enabled = enabled, onClick = onRun)
                 .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm + AppTheme.spacing.xxs)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -372,7 +397,12 @@ private fun ModuleCard(
 
 @Composable
 private fun TimelineRow(step: OptimizationStepUi) {
-    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+    OutlinedCard(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
+        )
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -409,12 +439,6 @@ private fun TimelineRow(step: OptimizationStepUi) {
 
 @Composable
 private fun StatusBadge(status: OptimizationStepStatus) {
-    val icon = when (status) {
-        OptimizationStepStatus.PENDING -> Icons.Default.Schedule
-        OptimizationStepStatus.RUNNING -> Icons.Default.Autorenew
-        OptimizationStepStatus.COMPLETED -> Icons.Default.CheckCircle
-        OptimizationStepStatus.FAILED -> Icons.Default.ErrorOutline
-    }
     Surface(
         color = statusColor(status).copy(alpha = 0.14f),
         shape = MaterialTheme.shapes.small
@@ -424,12 +448,17 @@ private fun StatusBadge(status: OptimizationStepStatus) {
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(14.dp),
-                tint = statusColor(status)
-            )
+            Crossfade(
+                targetState = status,
+                label = "status-icon"
+            ) { current ->
+                Icon(
+                    imageVector = statusIcon(current),
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = statusColor(current)
+                )
+            }
             Text(
                 text = stepStatusLabel(status),
                 style = MaterialTheme.typography.labelSmall,
@@ -474,6 +503,13 @@ private fun FullOptimizeButton(
             Text("Start Full Optimization", fontWeight = FontWeight.SemiBold)
         }
     }
+}
+
+private fun statusIcon(status: OptimizationStepStatus): ImageVector = when (status) {
+    OptimizationStepStatus.PENDING -> Icons.Default.Schedule
+    OptimizationStepStatus.RUNNING -> Icons.Default.Autorenew
+    OptimizationStepStatus.COMPLETED -> Icons.Default.CheckCircle
+    OptimizationStepStatus.FAILED -> Icons.Default.ErrorOutline
 }
 
 private fun stepStatusLabel(status: OptimizationStepStatus): String = when (status) {

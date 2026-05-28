@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -28,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.system.optimizer.core.ui.model.HistoryEntry
+import com.system.optimizer.core.ui.theme.AppTheme
 
 @Composable
 fun HistoryScreen(
@@ -35,14 +37,15 @@ fun HistoryScreen(
     onClearHistory: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val spacing = AppTheme.spacing
     val failedCount = history.count { it.isFailure }
     val successCount = history.size - failedCount
-    val successColor = Color(0xFF2E7D32)
+    val successColor = Color(0xFF1A8754)
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        contentPadding = PaddingValues(spacing.md),
+        verticalArrangement = Arrangement.spacedBy(spacing.sm + spacing.xs)
     ) {
         item {
             Row(
@@ -78,7 +81,7 @@ fun HistoryScreen(
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm)
             ) {
                 HistoryStatCard(
                     modifier = Modifier.weight(1f),
@@ -103,7 +106,12 @@ fun HistoryScreen(
 
         if (history.isEmpty()) {
             item {
-                OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+                OutlinedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.outlinedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    )
+                ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -137,7 +145,12 @@ private fun HistoryRow(entry: HistoryEntry, successColor: Color) {
     val isFailed = entry.isFailure
     val accent = if (isFailed) MaterialTheme.colorScheme.error else successColor
 
-    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+    OutlinedCard(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -194,7 +207,12 @@ private fun HistoryStatCard(
     tint: Color,
     modifier: Modifier = Modifier
 ) {
-    OutlinedCard(modifier = modifier) {
+    OutlinedCard(
+        modifier = modifier,
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
