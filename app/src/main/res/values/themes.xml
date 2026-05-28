@@ -4,12 +4,13 @@
       Activity-level theme is intentionally minimal. Compose drives the visual styling;
       this theme just removes the action bar and renders the app behind transparent system
       bars so we can do edge-to-edge.
+      Light navigation bar appearance is set at runtime via WindowCompat in Theme.kt to
+      stay compatible with minSdk 26 (XML attr requires API 27).
     -->
     <style name="Theme.SystemOptimizer" parent="android:Theme.DeviceDefault.NoActionBar">
         <item name="android:windowBackground">@android:color/white</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">true</item>
-        <item name="android:windowLightNavigationBar">true</item>
     </style>
 </resources>
